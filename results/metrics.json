@@ -1,0 +1,30 @@
+{
+  "n_test": 624,
+  "pretrained_rsna": {
+    "threshold": 0.5,
+    "accuracy": 0.7356,
+    "recall": 0.9462,
+    "specificity": 0.3846,
+    "precision": 0.7193,
+    "auc": 0.8242,
+    "missed_pneumonia": 21,
+    "false_alarms": 144
+  },
+  "finetuned_kermany": {
+    "threshold": 0.256,
+    "accuracy": 0.8157,
+    "recall": 0.9641,
+    "specificity": 0.5684,
+    "precision": 0.7883,
+    "auc": 0.9038,
+    "missed_pneumonia": 14,
+    "false_alarms": 101
+  },
+  "report_pipeline": {
+    "refer_rate": 0.5833,
+    "accuracy_on_non_referred": 0.9269,
+    "recall_on_non_referred": 0.9556,
+    "model_agreement_rate": 0.3446,
+    "mean_in_lung_attention_pneumonia": 0.4968
+  }
+}
