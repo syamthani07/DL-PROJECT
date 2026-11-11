@@ -26,9 +26,49 @@ st.title("🫁 Explainable Pneumonia Screening with Anatomy-Grounded Reports")
 st.caption(f"Main model: {eng.main_name} · Decision threshold {eng.threshold:.2f} · "
            "Second opinion: TorchXRayVision 'all' DenseNet · Segmentation: PSPNet anatomy model")
 
-up = st.file_uploader("Upload a chest X-ray (PNG / JPG)", type=["png", "jpg", "jpeg"])
+up = st.file_uploader("Upload a chest X-ray: browse, drag and drop anywhere on the page, or paste a screenshot (Ctrl+V)",
+                      type=["png", "jpg", "jpeg", "webp", "bmp"])
+
+# Streamlit's uploader has no clipboard support and only accepts drops on its own box.
+# This forwards an image pasted or dropped anywhere on the page into the uploader's file input.
+st.html("""
+<script>
+(() => {
+  if (window.__xrayPasteDrop) return;          // register once, not on every rerun
+  window.__xrayPasteDrop = true;
+  const DROPZONE = '[data-testid="stFileUploaderDropzone"]';
+  const images = (list) => Array.from(list || []).filter((f) => f.type.startsWith("image/"));
+  const send = (file) => {
+    const input = document.querySelector('[data-testid="stFileUploader"] input[type="file"]');
+    if (!input) return;
+    const ext = (file.type.split("/")[1] || "png").replace("jpeg", "jpg");
+    const named = file.name && file.name !== "image.png" ? file
+      : new File([file], `screenshot-${new Date().toISOString().slice(11, 19).replaceAll(":", "")}.${ext}`,
+                 { type: file.type });
+    const dt = new DataTransfer();
+    dt.items.add(named);
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  window.addEventListener("paste", (e) => {
+    const [file] = images(e.clipboardData && e.clipboardData.files);
+    if (file) { e.preventDefault(); send(file); }
+  });
+  window.addEventListener("dragover", (e) => {
+    if (e.dataTransfer && Array.from(e.dataTransfer.types).includes("Files")) e.preventDefault();
+  });
+  window.addEventListener("drop", (e) => {
+    if (e.target.closest && e.target.closest(DROPZONE)) return;   // the uploader handles its own box
+    const [file] = images(e.dataTransfer && e.dataTransfer.files);
+    e.preventDefault();                                            // never navigate away to the file
+    if (file) send(file);
+  });
+})();
+</script>
+""", unsafe_allow_javascript=True)
+
 if not up:
-    st.info("Upload an X-ray to generate the report.")
+    st.info("Upload, drop or paste an X-ray to generate the report.")
     st.stop()
 
 arr = np.array(Image.open(up).convert("L"))
@@ -50,6 +90,12 @@ st.image(make_panel(vis, m), use_container_width=True)
 
 left, right = st.columns([3, 2])
 with left:
+    if rep["conditions"]:
+        st.subheader("About the flagged findings")
+        st.caption("General information about each signal the models flagged (model score in brackets). "
+                   "A flagged signal is not a diagnosis.")
+        for name, score, text in rep["conditions"]:
+            st.markdown(f"**{name}** ({score:.2f}) is {text}")
     st.subheader("Report")
     for k, v in rep["sections"].items():
         st.markdown(f"**{k}** — {v}")

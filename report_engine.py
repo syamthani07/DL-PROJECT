@@ -303,12 +303,59 @@ def level4_realise(plan, s):
     return out
 
 
+# Fixed reference text for every label the models can flag. Like the report sentences, these are
+# looked up, never generated: a description appears only when its finding is flagged.
+CONDITION_INFO = {
+    "Pneumonia": "an infection that inflames the air sacs of one or both lungs, which may fill with fluid or pus. "
+                 "It typically causes cough, fever and fast or difficult breathing, and is caused by bacteria, "
+                 "viruses or, less often, fungi. On an X-ray it appears as a white, hazy area in the lung.",
+    "Lung Opacity": "a general term for any area of the lung that looks whiter than normal on the X-ray. It is a "
+                    "descriptive sign, not a diagnosis: infection, fluid, collapse and scarring can all cause it.",
+    "Consolidation": "a region of lung where the air sacs are filled with fluid, pus or cells instead of air, so "
+                     "it looks solid white. Pneumonia is the most common cause.",
+    "Infiltration": "a hazy, ill-defined area where fluid or cells have collected in the lung tissue. It is "
+                    "often seen with infection or inflammation.",
+    "Atelectasis": "partial or complete collapse of a lung or part of a lung, so the affected area holds less "
+                   "air. Common causes are a blocked airway, shallow breathing or pressure from outside the lung.",
+    "Effusion": "a build-up of fluid in the space between the lung and the chest wall. It can accompany "
+                "infection, heart failure and other conditions, and may cause breathlessness.",
+    "Edema": "excess fluid within the lung tissue and air sacs, most often related to the heart not pumping "
+             "effectively. It causes breathlessness.",
+    "Pneumothorax": "air in the space between the lung and the chest wall, which lets part or all of the lung "
+                    "collapse. It can cause sudden chest pain and breathlessness.",
+    "Emphysema": "long-term damage to the air sacs that traps air and makes the lungs over-inflated. It is "
+                 "usually related to smoking in adults and is rare in children.",
+    "Fibrosis": "scarring and thickening of lung tissue, which makes the lungs stiffer. It develops slowly and "
+                "can follow long-standing inflammation or injury.",
+    "Pleural_Thickening": "thickening of the thin lining around the lungs, usually from past inflammation, "
+                          "infection or injury.",
+    "Cardiomegaly": "a heart shadow that looks larger than expected for the chest. It can reflect a heart "
+                    "condition, but the heart can also look large because of how the image was taken.",
+    "Enlarged Cardiomediastinum": "widening of the central part of the chest that contains the heart and major "
+                                  "vessels. In young children a normal thymus gland can produce this appearance.",
+    "Nodule": "a small, rounded spot in the lung, up to about 3 cm across. Many are harmless, such as old "
+              "scars or healed infection, but they are usually followed up.",
+    "Mass": "a rounded abnormal area in the lung larger than about 3 cm. It needs further imaging to find the cause.",
+    "Lung Lesion": "a general term for any localised abnormal area in the lung. It covers nodules, masses and "
+                   "other focal changes.",
+    "Hernia": "part of an abdominal organ, usually the stomach, pushing up through the diaphragm into the chest.",
+    "Fracture": "a break in a bone visible on the image, most often a rib or collarbone.",
+}
+
+
+def flagged_conditions(s):
+    """(name, score, description) for what the report flags: pneumonia when the main model is at or
+    above its threshold, then the other signals already named in the report."""
+    flagged = ([("Pneumonia", s["p"])] if s["p"] >= s["t"] else []) + list(s["others"])
+    return [(k.replace("_", " "), v, CONDITION_INFO[k]) for k, v in flagged if k in CONDITION_INFO]
+
+
 def generate_report(m):
     verdict, reason = level1_verdict(m)
     plan = level2_plan(verdict, m)
     slots = level3_slots(verdict, reason, m)
     text = level4_realise(plan, slots)
-    return {"verdict": verdict, "plan": plan, "sections": text}
+    return {"verdict": verdict, "plan": plan, "sections": text, "conditions": flagged_conditions(slots)}
 
 
 if __name__ == "__main__":
@@ -320,3 +367,5 @@ if __name__ == "__main__":
     print("\nPLAN:", r["plan"])
     for k, v in r["sections"].items():
         print(f"\n{k.upper()}: {v}")
+    for name, score, text in r["conditions"]:
+        print(f"\n{name} ({score:.2f}): {text}")
